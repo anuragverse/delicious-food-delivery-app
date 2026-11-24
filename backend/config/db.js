@@ -1,15 +1,20 @@
 import mongoose from "mongoose";
 
 const connectDb = async () => {
+  // MONGODB_URL is preferred; MONGO_URI is accepted because .env.example used that name.
+  const uri = process.env.MONGODB_URL || process.env.MONGO_URI;
+
+  if (!uri) {
+    console.error("Database URL is missing. Set MONGODB_URL (or MONGO_URI).");
+    process.exit(1);
+  }
+
   try {
-    console.log("MongoDB URL:", process.env.MONGODB_URL);
-
-    await mongoose.connect(process.env.MONGODB_URL);
-
+    await mongoose.connect(uri);
     console.log("DB connected successfully");
   } catch (error) {
-    console.error("DB connection failed:");
-    console.error(error);
+    // Do not print the connection string - it contains the DB password.
+    console.error("DB connection failed:", error.message);
     process.exit(1);
   }
 };

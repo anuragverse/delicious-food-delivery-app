@@ -1,8 +1,9 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
 import axios from 'axios'
-import { serverUrl } from '../App'
+import { apiBase as serverUrl } from '../api';
 import { updateOrderStatus } from '../redux/userSlice'
+import { notify, errMsg } from '../toast'
 
 function OwnerOrderCard({ data }) {
   const dispatch = useDispatch()
@@ -34,15 +35,13 @@ function OwnerOrderCard({ data }) {
         assignment: result.data?.assignment
       }))
     } catch (error) {
-      console.log("Status update error:", error?.response?.data || error.message)
+      notify.error(errMsg(error, "Could not update the order status"))
     }
   }
 
   return (
     <div className='space-y-6'>
       {data.shopOrders.map((shopOrder, index) => {
-        const shopId = shopOrder?.shop?._id || shopOrder?.shop
-
         return (
           <div
             key={index}

@@ -8,6 +8,7 @@ import { FaPlus } from "react-icons/fa";
 import { FaShoppingCart } from "react-icons/fa";
 import { useDispatch, useSelector } from 'react-redux';
 import { addToCart } from '../redux/userSlice';
+import { notify } from '../toast';
 
 function FoodCard({ data }) {
   const [quantity, setQuantity] = useState(0)
@@ -82,6 +83,8 @@ function FoodCard({ data }) {
 
         <div className='flex items-center border rounded-full overflow-hidden shadow-sm'>
           <button
+            type="button"
+            aria-label="Decrease quantity"
             className='px-2 py-1 hover:bg-gray-100 transition'
             onClick={handleDecrease}
           >
@@ -91,6 +94,8 @@ function FoodCard({ data }) {
           <span className='px-2'>{quantity}</span>
 
           <button
+            type="button"
+            aria-label="Increase quantity"
             className='px-2 py-1 hover:bg-gray-100 transition'
             onClick={handleIncrease}
           >
@@ -98,6 +103,9 @@ function FoodCard({ data }) {
           </button>
 
           <button
+            type="button"
+            aria-label="Add to cart"
+            title={quantity === 0 ? "Choose a quantity first" : "Add to cart"}
             className={`${isInCart ? "bg-gray-800" : "bg-[#ff4d2d]"} text-white px-3 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
             disabled={quantity === 0}
             onClick={() => {
@@ -110,6 +118,8 @@ function FoodCard({ data }) {
                 quantity,
                 foodType: data.foodType
               }))
+              notify.success(`${quantity} x ${data.name} added to cart`)
+              setQuantity(0)
             }}
           >
             <FaShoppingCart size={16} />

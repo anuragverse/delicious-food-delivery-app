@@ -1,22 +1,27 @@
 import Item from "../models/item.model.js";
 import Shop from "../models/shop.model.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
+import { escapeRegex, isObjectId } from "../utils/helpers.js";
 
 export const addItem = async (req, res) => {
     try {
-        const { name, category, foodType, price } = req.body
+        const { name, category, foodType, price } = req.body || {}
 
         if (!name || !category || !foodType || !price) {
             return res.status(400).json({ message: "All fields are required" })
         }
 
-        if (Number(price) < 1) {
+        if (!Number.isFinite(Number(price)) || Number(price) < 1) {
             return res.status(400).json({ message: "Price must be greater than 0" })
         }
 
-        let image
-        if (req.file) {
-            image = await uploadOnCloudinary(req.file.path)
+        if (!req.file) {
+            return res.status(400).json({ message: "Item image is required" })
+        }
+
+        const image = await uploadOnCloudinary(req.file.path)
+        if (!image) {
+            return res.status(502).json({ message: "Image upload failed. Please try again." })
         }
 
         const shop = await Shop.findOne({ owner: req.userId })
@@ -28,7 +33,7 @@ export const addItem = async (req, res) => {
             name,
             category,
             foodType,
-            price,
+            price: Number(price),
             image,
             shop: shop._id
         })
@@ -45,33 +50,48 @@ export const addItem = async (req, res) => {
         return res.status(201).json(shop)
 
     } catch (error) {
-        return res.status(500).json({ message: `add item error ${error}` })
+        console.error("add item error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
 export const editItem = async (req, res) => {
     try {
         const itemId = req.params.itemId
-        const { name, category, foodType, price } = req.body
+        const { name, category, foodType, price } = req.body || {}
+
+        if (!isObjectId(itemId)) {
+            return res.status(400).json({ message: "Invalid item id" })
+        }
 
         if (!name || !category || !foodType || !price) {
             return res.status(400).json({ message: "All fields are required" })
         }
 
-        if (Number(price) < 1) {
+        if (!Number.isFinite(Number(price)) || Number(price) < 1) {
             return res.status(400).json({ message: "Price must be greater than 0" })
+        }
+
+        // Only the owner of the shop that sells this item may edit it
+        const ownShop = await Shop.findOne({ owner: req.userId })
+        if (!ownShop || !ownShop.items.some(i => String(i) === itemId)) {
+            return res.status(403).json({ message: "You can only edit items of your own shop" })
         }
 
         let uploadedImage
         if (req.file) {
             uploadedImage = await uploadOnCloudinary(req.file.path)
+
+            if (!uploadedImage) {
+                return res.status(502).json({ message: "Image upload failed. Please try again." })
+            }
         }
 
         const updateData = {
             name,
             category,
             foodType,
-            price
+            price: Number(price)
         }
 
         if (uploadedImage) {
@@ -81,7 +101,7 @@ export const editItem = async (req, res) => {
         const item = await Item.findByIdAndUpdate(
             itemId,
             updateData,
-            { new: true }
+            { new: true, runValidators: true }
         )
 
         if (!item) {
@@ -96,13 +116,19 @@ export const editItem = async (req, res) => {
         return res.status(200).json(shop)
 
     } catch (error) {
-        return res.status(500).json({ message: `edit item error ${error}` })
+        console.error("edit item error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
 export const getItemById = async (req, res) => {
     try {
         const itemId = req.params.itemId
+
+        if (!isObjectId(itemId)) {
+            return res.status(400).json({ message: "Invalid item id" })
+        }
+
         const item = await Item.findById(itemId)
 
         if (!item) {
@@ -111,23 +137,34 @@ export const getItemById = async (req, res) => {
 
         return res.status(200).json(item)
     } catch (error) {
-        return res.status(500).json({ message: `get item error ${error}` })
+        console.error("get item error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
 export const deleteItem = async (req, res) => {
     try {
         const itemId = req.params.itemId
-        const item = await Item.findByIdAndDelete(itemId)
 
-        if (!item) {
-            return res.status(400).json({ message: "Item not found" })
+        if (!isObjectId(itemId)) {
+            return res.status(400).json({ message: "Invalid item id" })
         }
 
         const shop = await Shop.findOne({ owner: req.userId })
 
         if (!shop) {
             return res.status(400).json({ message: "Shop not found" })
+        }
+
+        // Only the owner of the shop that sells this item may delete it
+        if (!shop.items.some(i => String(i) === itemId)) {
+            return res.status(403).json({ message: "You can only delete items of your own shop" })
+        }
+
+        const item = await Item.findByIdAndDelete(itemId)
+
+        if (!item) {
+            return res.status(400).json({ message: "Item not found" })
         }
 
         shop.items = shop.items.filter(i => String(i) !== String(item._id))
@@ -141,7 +178,8 @@ export const deleteItem = async (req, res) => {
         return res.status(200).json(shop)
 
     } catch (error) {
-        return res.status(500).json({ message: `delete item error ${error}` })
+        console.error("delete item error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
@@ -154,7 +192,7 @@ export const getItemByCity = async (req, res) => {
         }
 
         const shops = await Shop.find({
-            city: { $regex: new RegExp(`^${city}$`, "i") }
+            city: { $regex: new RegExp(`^${escapeRegex(city)}$`, "i") }
         }).populate("items")
 
         if (shops.length === 0) {
@@ -167,13 +205,19 @@ export const getItemByCity = async (req, res) => {
         return res.status(200).json(items)
 
     } catch (error) {
-        return res.status(500).json({ message: `get item by city error ${error}` })
+        console.error("get item by city error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
 export const getItemsByShop = async (req, res) => {
     try {
         const { shopId } = req.params
+
+        if (!isObjectId(shopId)) {
+            return res.status(400).json({ message: "Invalid shop id" })
+        }
+
         const shop = await Shop.findById(shopId).populate("items")
 
         if (!shop) {
@@ -185,7 +229,8 @@ export const getItemsByShop = async (req, res) => {
             items: shop.items
         })
     } catch (error) {
-        return res.status(500).json({ message: `get item by shop error ${error}` })
+        console.error("get item by shop error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
@@ -198,7 +243,7 @@ export const searchItems = async (req, res) => {
         }
 
         const shops = await Shop.find({
-            city: { $regex: new RegExp(`^${city}$`, "i") }
+            city: { $regex: new RegExp(`^${escapeRegex(city)}$`, "i") }
         }).populate("items")
 
         if (shops.length === 0) {
@@ -210,23 +255,25 @@ export const searchItems = async (req, res) => {
         const items = await Item.find({
             shop: { $in: shopIds },
             $or: [
-                { name: { $regex: query, $options: "i" } },
-                { category: { $regex: query, $options: "i" } }
+                { name: { $regex: escapeRegex(query), $options: "i" } },
+                { category: { $regex: escapeRegex(query), $options: "i" } }
             ]
         }).populate("shop", "name image")
 
         return res.status(200).json(items)
 
     } catch (error) {
-        return res.status(500).json({ message: `search item error ${error}` })
+        console.error("search item error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
 export const rating = async (req, res) => {
     try {
-        const { itemId, rating } = req.body
+        const { itemId } = req.body || {}
+        const rating = Number(req.body?.rating)
 
-        if (!itemId || !rating) {
+        if (!isObjectId(itemId) || !Number.isFinite(rating)) {
             return res.status(400).json({ message: "itemId and rating are required" })
         }
 
@@ -249,6 +296,7 @@ export const rating = async (req, res) => {
         return res.status(200).json({ rating: item.rating })
 
     } catch (error) {
-        return res.status(500).json({ message: `rating error ${error}` })
+        console.error("rating error:", error)
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }

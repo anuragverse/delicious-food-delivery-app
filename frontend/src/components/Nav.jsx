@@ -5,11 +5,12 @@ import { FiShoppingCart } from "react-icons/fi";
 import { useDispatch, useSelector } from 'react-redux';
 import { RxCross2 } from "react-icons/rx";
 import axios from 'axios';
-import { serverUrl } from '../App';
+import { apiBase as serverUrl } from '../api';
 import { setSearchItems, setUserData } from '../redux/userSlice';
 import { FaPlus } from "react-icons/fa6";
 import { TbReceipt2 } from "react-icons/tb";
 import { useNavigate } from 'react-router-dom';
+import { notify, errMsg } from '../toast';
 
 function Nav() {
     const { userData, currentCity, cartItems, unreadOrderCount } = useSelector(state => state.user)
@@ -27,26 +28,37 @@ function Nav() {
             await axios.get(`${serverUrl}/api/auth/signout`, { withCredentials: true })
             dispatch(setUserData(null))
         } catch (error) {
-            console.log(error)
+            notify.error(errMsg(error, "Could not log out. Please try again."))
         }
     }
 
-    const handleSearchItems = async () => {
-        try {
-            const result = await axios.get(`${serverUrl}/api/item/search-items?query=${query}&city=${currentCity}`, { withCredentials: true })
-            dispatch(setSearchItems(result.data))
-        } catch (error) {
-            console.log(error)
-        }
-    }
-
+    // Debounced search: wait for a pause in typing, and ignore stale responses
     useEffect(() => {
-        if (query) {
-            handleSearchItems()
-        } else {
+        const text = query.trim()
+
+        if (!text || !currentCity) {
             dispatch(setSearchItems(null))
+            return
         }
-    }, [query])
+
+        let cancelled = false
+        const timer = setTimeout(async () => {
+            try {
+                const result = await axios.get(
+                    `${serverUrl}/api/item/search-items?query=${encodeURIComponent(text)}&city=${encodeURIComponent(currentCity)}`,
+                    { withCredentials: true }
+                )
+                if (!cancelled) dispatch(setSearchItems(result.data))
+            } catch (error) {
+                if (!cancelled) console.log("Search error:", error?.message)
+            }
+        }, 350)
+
+        return () => {
+            cancelled = true
+            clearTimeout(timer)
+        }
+    }, [query, currentCity, dispatch])
 
     return (
         <div className='w-full h-[80px] flex items-center justify-between md:justify-center gap-[30px] px-[20px] fixed top-0 z-[9999] bg-[#fff9f6]/95 backdrop-blur-sm overflow-visible border-b border-[#ffe5de]'>
@@ -160,7 +172,9 @@ function Nav() {
                 ) : (
                     <>
                         {userData.role === "user" && (
-                            <div
+                            <button
+                                type="button"
+                                aria-label={`Cart, ${cartItems.length} items`}
                                 className='relative cursor-pointer transition-transform duration-200 hover:scale-110'
                                 onClick={() => navigate("/cart")}
                             >
@@ -168,7 +182,7 @@ function Nav() {
                                 <span className='absolute right-[-9px] top-[-12px] text-[#ff4d2d] font-semibold'>
                                     {cartItems.length}
                                 </span>
-                            </div>
+                            </button>
                         )}
 
                         <button
@@ -181,12 +195,15 @@ function Nav() {
                 )}
 
                 {/* Profile */}
-                <div
-                    className='w-[40px] h-[40px] rounded-full flex items-center justify-center bg-[#ff4d2d] text-white text-[18px] shadow-xl font-semibold cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-2xl'
+                <button
+                    type="button"
+                    aria-label="Account menu"
+                    aria-expanded={showInfo}
+                    className='w-[40px] h-[40px] rounded-full flex items-center justify-center bg-[#ff4d2d] text-white text-[18px] shadow-xl font-semibold cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-2xl uppercase'
                     onClick={() => setShowInfo(prev => !prev)}
                 >
                     {userData?.fullName?.slice(0, 1)}
-                </div>
+                </button>
 
                 {/* Dropdown */}
                 {showInfo && (
@@ -194,11 +211,12 @@ function Nav() {
                     ${userData.role === "deliveryBoy" ? "md:right-[20%] lg:right-[40%]" : "md:right-[10%] lg:right-[25%]"} 
                     w-[190px] bg-white shadow-2xl rounded-2xl p-[20px] flex flex-col gap-[12px] z-[9999] border border-[#ffe5de] animate-[fadeIn_0.2s_ease-in-out]`}>
                         <div className='text-[17px] font-semibold text-gray-800'>{userData.fullName}</div>
+                        <div className='-mt-2 text-xs text-gray-500 capitalize'>{userData.role === "deliveryBoy" ? "Delivery Partner" : userData.role === "owner" ? "Restaurant Owner" : "Customer"}</div>
 
                         {userData.role === "user" && (
                             <div
                                 className='md:hidden text-[#ff4d2d] font-semibold cursor-pointer hover:translate-x-1 transition-all duration-200'
-                                onClick={() => navigate("/my-orders")}
+                                onClick={() => { setShowInfo(false); navigate("/my-orders") }}
                             >
                                 My Orders
                             </div>
@@ -206,7 +224,7 @@ function Nav() {
 
                         <div
                             className='text-[#ff4d2d] font-semibold cursor-pointer hover:translate-x-1 transition-all duration-200'
-                            onClick={handleLogOut}
+                            onClick={() => { setShowInfo(false); handleLogOut() }}
                         >
                             Log Out
                         </div>

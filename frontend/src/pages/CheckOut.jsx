@@ -12,8 +12,9 @@ import { FaCreditCard } from "react-icons/fa";
 import axios from 'axios';
 import { FaMobileScreenButton } from "react-icons/fa6";
 import { useNavigate } from 'react-router-dom';
-import { serverUrl } from '../App';
-import { addMyOrder } from '../redux/userSlice';
+import { apiBase as serverUrl } from '../api';
+import { addMyOrder, clearCart } from '../redux/userSlice';
+import { notify, errMsg } from '../toast';
 
 function RecenterMap({ location }) {
   const map = useMap()
@@ -55,7 +56,10 @@ function CheckOut() {
       const latitude = userData?.location?.coordinates?.[1]
       const longitude = userData?.location?.coordinates?.[0]
 
-      if (!latitude || !longitude) return
+      if (!latitude || !longitude) {
+        notify.error("We could not detect your location. Allow location access or search for your address.")
+        return
+      }
 
       dispatch(setLocation({ lat: latitude, lon: longitude }))
       getAddressByLatLng(latitude, longitude)
@@ -75,6 +79,7 @@ function CheckOut() {
       setAddressInput(resolvedAddress)
     } catch (error) {
       console.log("Reverse geocode error:", error)
+      notify.error("Could not look up that address. You can type it in manually.")
     }
   }
 
@@ -87,7 +92,10 @@ function CheckOut() {
       )
 
       const feature = result?.data?.features?.[0]
-      if (!feature) return
+      if (!feature) {
+        notify.error("Address not found. Try adding the city or area.")
+        return
+      }
 
       const { lat, lon, formatted } = feature.properties
       dispatch(setLocation({ lat, lon }))
@@ -97,6 +105,7 @@ function CheckOut() {
       setShowSuggestions(false)
     } catch (error) {
       console.log("Forward geocode error:", error)
+      notify.error("Address search failed. Please try again.")
     }
   }
 
@@ -131,6 +140,23 @@ function CheckOut() {
   }
 
   const handlePlaceOrder = async () => {
+    if (loading) return
+
+    if (!addressInput.trim()) {
+      notify.error("Please enter your delivery address")
+      return
+    }
+
+    if (!location?.lat || !location?.lon) {
+      notify.error("Search for your address or drag the pin on the map so we know where to deliver")
+      return
+    }
+
+    if (!cartItems.length) {
+      notify.error("Your cart is empty")
+      return
+    }
+
     try {
       setLoading(true)
 
@@ -161,6 +187,7 @@ function CheckOut() {
 
       if (paymentMethod === "cod") {
         dispatch(addMyOrder(result.data))
+        dispatch(clearCart())
         navigate("/order-placed")
       } else {
         const orderId = result?.data?.orderId
@@ -168,7 +195,7 @@ function CheckOut() {
         const key = result?.data?.key
 
         if (!orderId || !razorOrder) {
-          console.log("Missing Razorpay order data")
+          notify.error("Could not start the payment. Please try again.")
           return
         }
 
@@ -176,7 +203,7 @@ function CheckOut() {
       }
 
     } catch (error) {
-      console.log("PLACE ORDER ERROR:", error?.response?.data || error.message)
+      notify.error(errMsg(error, "Could not place your order. Please try again."))
     } finally {
       setLoading(false)
     }
@@ -184,7 +211,7 @@ function CheckOut() {
 
   const openRazorpayWindow = (orderId, razorOrder, key) => {
     if (!window.Razorpay) {
-      console.log("Razorpay SDK not loaded")
+      notify.error("Payment gateway failed to load. Check your connection or choose Cash on Delivery.")
       return
     }
 
@@ -210,10 +237,11 @@ function CheckOut() {
           )
 
           dispatch(addMyOrder(result?.data?.order))
+          dispatch(clearCart())
           navigate("/order-placed")
 
         } catch (error) {
-          console.log("VERIFY PAYMENT ERROR:", error?.response?.data || error.message)
+          notify.error(errMsg(error, "Payment could not be verified. If money was deducted, contact support."))
         }
       },
 
@@ -238,12 +266,14 @@ function CheckOut() {
 
   return (
     <div className='min-h-screen bg-[#fff9f6] flex items-center justify-center px-4 py-6'>
-      <div
+      <button
+        type="button"
+        aria-label="Back"
         className='absolute top-[20px] left-[20px] z-[10] cursor-pointer transition-transform hover:scale-110'
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/cart")}
       >
         <IoIosArrowRoundBack size={35} className='text-[#ff4d2d]' />
-      </div>
+      </button>
 
       <div className='w-full max-w-[950px] bg-white rounded-3xl shadow-xl border border-[#ffe5de] p-6 md:p-8 space-y-8'>
 
@@ -271,11 +301,15 @@ function CheckOut() {
                   setAddressInput(value)
                   fetchAddressSuggestions(value)
                 }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); getLatLngByAddress() } }}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               />
 
               <button
+                type="button"
+                aria-label="Search address"
+                title="Search address"
                 className='bg-[#ff4d2d] hover:bg-[#e64526] hover:scale-105 transition-all text-white px-4 py-2 rounded-xl flex items-center justify-center shadow-sm'
                 onClick={getLatLngByAddress}
               >
@@ -283,6 +317,9 @@ function CheckOut() {
               </button>
 
               <button
+                type="button"
+                aria-label="Use my current location"
+                title="Use my current location"
                 className='bg-blue-500 hover:bg-blue-600 hover:scale-105 transition-all text-white px-4 py-2 rounded-xl flex items-center justify-center shadow-sm'
                 onClick={getCurrentLocation}
               >
@@ -404,6 +441,7 @@ function CheckOut() {
 
         {/* CTA */}
         <button
+          type="button"
           className='w-full bg-[#ff4d2d] hover:bg-[#e64526] hover:scale-[1.01] transition-all text-white py-3.5 rounded-2xl font-semibold shadow-md disabled:opacity-60 disabled:cursor-not-allowed'
           onClick={handlePlaceOrder}
           disabled={loading}

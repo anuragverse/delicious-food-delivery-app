@@ -2,7 +2,8 @@ import axios from 'axios';
 import React from 'react'
 import { FaPen, FaTrashAlt } from "react-icons/fa";
 import { useNavigate } from 'react-router-dom';
-import { serverUrl } from '../App';
+import { apiBase as serverUrl } from '../api';
+import { notify, errMsg } from '../toast';
 import { useDispatch } from 'react-redux';
 import { setMyShopData } from '../redux/ownerSlice';
 
@@ -21,8 +22,9 @@ function OwnerItemCard({ data }) {
       { withCredentials: true }
     )
     dispatch(setMyShopData(result.data))
+    notify.success("Item deleted")
   } catch (error) {
-    console.log(error)
+    notify.error(errMsg(error, "Could not delete the item"))
   }
 }
 

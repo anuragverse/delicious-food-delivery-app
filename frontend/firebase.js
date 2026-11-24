@@ -14,7 +14,21 @@ const firebaseConfig = {
   appId: "1:693314883513:web:4840c943ecf3fb61a33068"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth=getAuth(app)
+// Initialize Firebase only when a key is configured. Without one, `getAuth` throws at
+// import time and the whole app renders as a blank page; instead Google sign-in is
+// simply reported as unavailable and email/password login keeps working.
+let app = null
+let auth = null
+
+if (firebaseConfig.apiKey) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app)
+  } catch (error) {
+    console.warn("Firebase init failed:", error.message)
+  }
+}
+
+export const isGoogleAuthAvailable = () => Boolean(auth)
+
 export {app,auth}

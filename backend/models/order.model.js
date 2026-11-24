@@ -78,6 +78,14 @@ const shopOrderSchema = new mongoose.Schema({
   type: Number,
   default: null
 },
+otpExpiresAt: {
+  type: Date,
+  default: null
+},
+otpAttempts: {
+  type: Number,
+  default: 0
+},
 deliveredAt: {
   type: Date,
   default: null
@@ -92,6 +100,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
+    enum: ["cod", "online"],
     required: true
   },
   deliveryAddress: {

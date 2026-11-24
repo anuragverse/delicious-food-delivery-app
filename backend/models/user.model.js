@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import { type } from "os";
 
 const userSchema = new mongoose.Schema({
     fullName: {
@@ -32,6 +31,10 @@ const userSchema = new mongoose.Schema({
     },
     otpExpires:{
         type:Date
+    },
+    otpAttempts:{
+        type:Number,
+        default:0
     },
     socketId:{
      type:String,

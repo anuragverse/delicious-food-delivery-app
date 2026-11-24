@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import { IoIosArrowRoundBack } from "react-icons/io";
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import axios from 'axios';
-import { serverUrl } from '../App';
+import { apiBase as serverUrl } from '../api';
+import { notify, errMsg } from '../toast';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
 
 function EditItem() {
     const navigate = useNavigate()
-    const { myShopData } = useSelector(state => state.owner)
     const { itemId } = useParams()
 
     const [currentItem, setCurrentItem] = useState(null)
@@ -64,17 +64,17 @@ function EditItem() {
         e.preventDefault()
 
         if (!name.trim()) {
-            alert("Please enter food name")
+            notify.error("Please enter food name")
             return
         }
 
         if (!category) {
-            alert("Please select a category")
+            notify.error("Please select a category")
             return
         }
 
         if (!price || Number(price) < 1) {
-            alert("Price must be greater than 0")
+            notify.error("Price must be greater than 0")
             return
         }
 
@@ -98,9 +98,10 @@ function EditItem() {
             )
 
             dispatch(setMyShopData(result.data))
+            notify.success("Item updated")
             navigate("/")
         } catch (error) {
-            console.log(error)
+            notify.error(errMsg(error, "Could not save the item"))
         } finally {
             setLoading(false)
         }
@@ -115,7 +116,7 @@ function EditItem() {
                 )
                 setCurrentItem(result.data)
             } catch (error) {
-                console.log(error)
+                notify.error(errMsg(error, "Could not load this item"))
             }
         }
 

@@ -1,16 +1,34 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// The cart survives a page refresh (stored by redux/store.js)
+const CART_KEY = "delicious_cart"
+
+const loadCart = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CART_KEY) || "[]")
+    if (!Array.isArray(raw)) return []
+    return raw.filter((i) => i && i.id && Number(i.price) >= 0 && Number(i.quantity) > 0)
+  } catch {
+    return []
+  }
+}
+
+const initialCart = loadCart()
+const cartTotal = (items) => items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+export { CART_KEY }
+
 const userSlice = createSlice({
   name: "user",
   initialState: {
     userData: null,
+    authChecked: false,
     currentCity: null,
     currentState: null,
     currentAddress: null,
     shopInMyCity: null,
     itemsInMyCity: null,
-    cartItems: [],
-    totalAmount: 0,
+    cartItems: initialCart,
+    totalAmount: cartTotal(initialCart),
     myOrders: [],
     searchItems: null,
     socket: null,
@@ -19,6 +37,14 @@ const userSlice = createSlice({
   reducers: {
     setUserData: (state, action) => {
       state.userData = action.payload
+      // signing out must not leave the previous person's cart behind
+      if (!action.payload) {
+        state.cartItems = []
+        state.totalAmount = 0
+      }
+    },
+    setAuthChecked: (state, action) => {
+      state.authChecked = action.payload
     },
     setCurrentCity: (state, action) => {
       state.currentCity = action.payload
@@ -65,6 +91,11 @@ const userSlice = createSlice({
       }
 
       state.totalAmount = state.cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+    },
+
+    clearCart: (state) => {
+      state.cartItems = []
+      state.totalAmount = 0
     },
 
     removeCartItem: (state, action) => {
@@ -140,6 +171,7 @@ const userSlice = createSlice({
 
 export const {
   setUserData,
+  setAuthChecked,
   setCurrentAddress,
   setCurrentCity,
   setCurrentState,
@@ -148,6 +180,7 @@ export const {
   addToCart,
   updateQuantity,
   removeCartItem,
+  clearCart,
   setMyOrders,
   addMyOrder,
   updateOrderStatus,

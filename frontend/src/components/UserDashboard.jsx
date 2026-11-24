@@ -5,6 +5,7 @@ import CategoryCard from './CategoryCard'
 import { FaCircleChevronLeft, FaCircleChevronRight } from "react-icons/fa6";
 import { useSelector } from 'react-redux';
 import FoodCard from './FoodCard';
+import CityPicker from './CityPicker';
 import { useNavigate } from 'react-router-dom';
 
 function UserDashboard() {
@@ -22,6 +23,10 @@ function UserDashboard() {
   const [updatedItemsList, setUpdatedItemsList] = useState([])
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedFoodType, setSelectedFoodType] = useState("all")
+  const [showCityPicker, setShowCityPicker] = useState(false)
+
+  // Shops were looked up for this city and none exist (an empty list, not "still loading")
+  const noShopsInCity = Array.isArray(shopInMyCity) && shopInMyCity.length === 0
 
   const handleFilterByCategory = (category) => {
     setSelectedCategory(category)
@@ -157,8 +162,31 @@ function UserDashboard() {
       <div className='w-full max-w-6xl flex flex-col gap-5 items-start px-4'>
         <div className='flex flex-col gap-1'>
           <h1 className='text-gray-900 text-3xl font-bold'>Best Shops in {currentCity}</h1>
-          <p className='text-gray-500 text-sm'>Popular picks around your city</p>
+          <p className='text-gray-500 text-sm'>
+            Popular picks around your city
+            {currentCity && (
+              <button
+                className='ml-3 text-[#ff4d2d] font-medium hover:underline'
+                onClick={() => setShowCityPicker((open) => !open)}
+              >
+                Change city
+              </button>
+            )}
+          </p>
         </div>
+
+        {(showCityPicker || !currentCity || noShopsInCity) && (
+          <CityPicker
+            title={
+              !currentCity
+                ? 'Choose your city'
+                : noShopsInCity
+                  ? `No shops in ${currentCity} yet. Pick a city that has shops:`
+                  : 'Choose a city'
+            }
+            onDone={() => setShowCityPicker(false)}
+          />
+        )}
 
         <div className='w-full relative'>
           {showLeftShopButton && (

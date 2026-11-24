@@ -32,22 +32,26 @@ function FitBounds({ routeCoordinates }) {
 function DeliveryBoyTracking({ data }) {
   const [routeCoordinates, setRouteCoordinates] = useState([])
 
-  const deliveryBoyLat = data?.deliveryBoyLocation?.lat
-  const deliveryBoylon = data?.deliveryBoyLocation?.lon
-  const customerLat = data?.customerLocation?.lat
-  const customerlon = data?.customerLocation?.lon
+  // A real position: a finite number pair that is not the (0, 0) placeholder
+  // stored for partners who have not shared their location yet
+  const toNum = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v))
+  const isValidPoint = (lat, lon) =>
+    Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0)
 
-  const center = [deliveryBoyLat, deliveryBoylon]
+  const deliveryBoyLat = toNum(data?.deliveryBoyLocation?.lat)
+  const deliveryBoylon = toNum(data?.deliveryBoyLocation?.lon)
+  const customerLat = toNum(data?.customerLocation?.lat)
+  const customerlon = toNum(data?.customerLocation?.lon)
+
+  const hasPartner = isValidPoint(deliveryBoyLat, deliveryBoylon)
+  const hasCustomer = isValidPoint(customerLat, customerlon)
+
+  const center = hasPartner ? [deliveryBoyLat, deliveryBoylon] : [customerLat, customerlon]
 
   useEffect(() => {
     const fetchRoute = async () => {
       try {
-        if (
-          !deliveryBoyLat ||
-          !deliveryBoylon ||
-          !customerLat ||
-          !customerlon
-        ) return
+        if (!hasPartner || !hasCustomer) return
 
         const url = `https://router.project-osrm.org/route/v1/driving/${deliveryBoylon},${deliveryBoyLat};${customerlon},${customerLat}?overview=full&geometries=geojson`
 
@@ -66,19 +70,25 @@ function DeliveryBoyTracking({ data }) {
     }
 
     fetchRoute()
-  }, [deliveryBoyLat, deliveryBoylon, customerLat, customerlon])
+  }, [deliveryBoyLat, deliveryBoylon, customerLat, customerlon, hasPartner, hasCustomer])
 
-  if (!deliveryBoyLat || !deliveryBoylon || !customerLat || !customerlon) {
+  if (!hasCustomer) {
     return (
       <div className='w-full h-[400px] mt-3 rounded-xl overflow-hidden shadow-md flex items-center justify-center bg-gray-100'>
-        <p className='text-gray-500'>Tracking data not available</p>
+        <p className='text-gray-500'>Tracking data not available (this order has no delivery coordinates)</p>
       </div>
     )
   }
 
   return (
-    <div className='w-full h-[400px] mt-3 rounded-xl overflow-hidden shadow-md'>
+    <div className='relative w-full h-[400px] mt-3 rounded-xl overflow-hidden shadow-md'>
+      {!hasPartner && (
+        <div className='absolute top-2 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 text-gray-700 text-sm px-3 py-1.5 rounded-full shadow'>
+          Waiting for the delivery partner&apos;s live location...
+        </div>
+      )}
       <MapContainer
+        key={hasPartner ? "with-partner" : "no-partner"}
         className="w-full h-full"
         center={center}
         zoom={16}
@@ -88,9 +98,11 @@ function DeliveryBoyTracking({ data }) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <Marker position={[deliveryBoyLat, deliveryBoylon]} icon={deliveryBoyIcon}>
-          <Popup>Delivery Boy</Popup>
-        </Marker>
+        {hasPartner && (
+          <Marker position={[deliveryBoyLat, deliveryBoylon]} icon={deliveryBoyIcon}>
+            <Popup>Delivery Boy</Popup>
+          </Marker>
+        )}
 
         <Marker position={[customerLat, customerlon]} icon={customerIcon}>
           <Popup>Customer Location</Popup>

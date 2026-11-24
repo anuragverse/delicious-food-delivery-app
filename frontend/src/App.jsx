@@ -23,6 +23,8 @@ import useUpdateLocation from './hooks/useUpdateLocation'
 import TrackOrderPage from './pages/TrackOrderPage'
 import Shop from './pages/Shop'
 import { io } from 'socket.io-client'
+import Toaster from './components/Toaster'
+import { apiBase, getToken } from './api'
 import {
   addMyOrder,
   incrementUnreadOrderCount,
@@ -30,10 +32,10 @@ import {
   setSocket
 } from './redux/userSlice'
 
-export const serverUrl = import.meta.env.VITE_SERVER_URL;
+const serverUrl = apiBase;
 
 function App() {
-  const { userData, socket } = useSelector(state => state.user)
+  const { userData, socket, authChecked } = useSelector(state => state.user)
   const dispatch = useDispatch()
 
   useGetCurrentUser()
@@ -48,8 +50,9 @@ function App() {
   useEffect(() => {
     if (!userData?._id) return
 
+    // The server identifies the user from this token (not from anything we send later)
     const socketInstance = io(serverUrl, {
-      withCredentials: true,
+      auth: { token: getToken() },
       transports: ["websocket"]
     })
 
@@ -57,10 +60,6 @@ function App() {
 
     socketInstance.on('connect', () => {
       console.log("Socket connected:", socketInstance.id)
-
-      socketInstance.emit('identity', {
-        userId: userData._id
-      })
     })
 
     return () => {
@@ -85,7 +84,7 @@ function App() {
     return () => {
       socket.off("newOrder", handleGlobalNewOrder)
     }
-  }, [socket, userData?._id, userData?.role, dispatch])
+  }, [socket, userData, dispatch])
 
   // delivery boy realtime assignment
   useEffect(() => {
@@ -120,7 +119,21 @@ function App() {
     return () => {
       socket.off("new-delivery-assignment", handleNewDeliveryAssignment)
     }
-  }, [socket, userData?._id, userData?.role, dispatch])
+  }, [socket, userData, dispatch])
+
+  // Wait until we know whether the visitor is signed in (prevents redirecting a
+  // refresh on /my-orders to the sign-in / home page)
+  if (!authChecked) {
+    return (
+      <div className='min-h-screen flex items-center justify-center bg-[#fff9f6]'>
+        <div className='flex flex-col items-center gap-3'>
+          <h1 className='text-3xl font-bold text-[#ff4d2d]'>Delicious</h1>
+          <p className='text-gray-500 text-sm'>Loading...</p>
+        </div>
+        <Toaster />
+      </div>
+    )
+  }
 
   return (
     <div className='min-h-screen flex flex-col bg-[#fff9f6]'>
@@ -139,10 +152,12 @@ function App() {
           <Route path='/my-orders' element={userData ? <MyOrders /> : <Navigate to={"/signin"} />} />
           <Route path='/track-order/:orderId' element={userData ? <TrackOrderPage /> : <Navigate to={"/signin"} />} />
           <Route path='/shop/:shopId' element={userData ? <Shop /> : <Navigate to={"/signin"} />} />
+          <Route path='*' element={<Navigate to={"/"} replace />} />
         </Routes>
       </div>
 
       {userData && <Footer />}
+      <Toaster />
     </div>
   )
 }

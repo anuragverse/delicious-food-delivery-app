@@ -49,6 +49,8 @@ function CartItemCard({ data }) {
                 {/* Quantity Controls */}
                 <div className='flex items-center gap-3 bg-[#fff7f3] px-3 py-2 rounded-full border border-[#ffe5de]'>
                     <button
+                        type="button"
+                        aria-label="Decrease quantity"
                         className='p-2 cursor-pointer bg-white rounded-full hover:bg-gray-100 transition shadow-sm'
                         onClick={() => handleDecrease(data.id, data.quantity)}
                     >
@@ -60,6 +62,8 @@ function CartItemCard({ data }) {
                     </span>
 
                     <button
+                        type="button"
+                        aria-label="Increase quantity"
                         className='p-2 cursor-pointer bg-white rounded-full hover:bg-gray-100 transition shadow-sm'
                         onClick={() => handleIncrease(data.id, data.quantity)}
                     >
@@ -69,6 +73,8 @@ function CartItemCard({ data }) {
 
                 {/* Remove Button */}
                 <button
+                    type="button"
+                    aria-label="Remove item"
                     className="p-2.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-all duration-200 hover:scale-110"
                     onClick={() => dispatch(removeCartItem(data.id))}
                 >

@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { FaUtensils } from "react-icons/fa";
 import { useState } from 'react';
-import { useRef } from 'react';
 import axios from 'axios';
-import { serverUrl } from '../App';
+import { apiBase as serverUrl } from '../api';
+import { notify, errMsg } from '../toast';
 import { setMyShopData } from '../redux/ownerSlice';
 import { ClipLoader } from 'react-spinners';
 function CreateEditShop() {
@@ -23,6 +23,7 @@ function CreateEditShop() {
        const dispatch=useDispatch()
        const handleImage=(e)=>{
         const file=e.target.files[0]
+        if(!file) return
         setBackendImage(file)
         setFrontendImage(URL.createObjectURL(file))
        }
@@ -42,9 +43,10 @@ function CreateEditShop() {
            const result=await axios.post(`${serverUrl}/api/shop/create-edit`,formData,{withCredentials:true})
            dispatch(setMyShopData(result.data))
           setLoading(false)
+          notify.success("Shop saved")
           navigate("/")
         } catch (error) {
-            console.log(error)
+            notify.error(errMsg(error, "Could not save the shop"))
             setLoading(false)
         }
        }

@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react'
 import Nav from './Nav'
 import { useSelector } from 'react-redux'
 import axios from 'axios'
-import { serverUrl } from '../App'
+import { apiBase as serverUrl } from '../api';
 import DeliveryBoyTracking from './DeliveryBoyTracking'
 import { ClipLoader } from 'react-spinners'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { FaMotorcycle, FaLocationArrow } from "react-icons/fa";
 import { MdDeliveryDining } from "react-icons/md";
 import { FiPackage } from "react-icons/fi";
+import { notify, errMsg } from '../toast';
 
 function DeliveryBoy() {
   const { userData, socket } = useSelector(state => state.user)
@@ -84,7 +85,7 @@ function DeliveryBoy() {
     try {
       setLoading(true)
 
-      const result = await axios.get(
+      await axios.get(
         `${serverUrl}/api/order/accept-order/${assignmentId}`,
         { withCredentials: true }
       )
@@ -98,7 +99,8 @@ function DeliveryBoy() {
 
       setLoading(false)
     } catch (error) {
-      console.log("ACCEPT ORDER ERROR:", error?.response?.data || error.message)
+      notify.error(errMsg(error, "Could not accept this order. Someone else may have taken it."))
+      await getAssignments()
       setLoading(false)
     }
   }
@@ -107,7 +109,7 @@ function DeliveryBoy() {
     setLoading(true)
 
     try {
-      const result = await axios.post(
+      await axios.post(
         `${serverUrl}/api/order/send-delivery-otp`,
         {
           orderId: currentOrder._id,
@@ -117,9 +119,10 @@ function DeliveryBoy() {
       )
 
       setShowOtpBox(true)
+      notify.success("OTP sent to the customer's email")
       setLoading(false)
     } catch (error) {
-      console.log("SEND OTP ERROR:", error?.response?.data || error.message)
+      notify.error(errMsg(error, "Could not send the OTP. Please try again."))
       setLoading(false)
     }
   }
@@ -128,7 +131,7 @@ function DeliveryBoy() {
     setLoading(true)
 
     try {
-      const result = await axios.post(
+      await axios.post(
         `${serverUrl}/api/order/verify-delivery-otp`,
         {
           orderId: currentOrder._id,
@@ -152,7 +155,7 @@ function DeliveryBoy() {
 
       setLoading(false)
     } catch (error) {
-      console.log("VERIFY OTP ERROR:", error?.response?.data || error.message)
+      notify.error(errMsg(error, "Could not verify the OTP. Please try again."))
       setLoading(false)
     }
   }

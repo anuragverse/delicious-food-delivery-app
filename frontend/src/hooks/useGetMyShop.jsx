@@ -1,8 +1,7 @@
 import axios from 'axios'
 import React, { useEffect } from 'react'
-import { serverUrl } from '../App'
+import { apiBase as serverUrl } from '../api';
 import { useDispatch, useSelector } from 'react-redux'
-import { setUserData } from '../redux/userSlice'
 import { setMyShopData } from '../redux/ownerSlice'
 
 function useGetMyshop() {
@@ -20,7 +19,7 @@ function useGetMyshop() {
 }
 fetchShop()
  
-  },[userData])
+  },[userData, dispatch])
 }
 
 export default useGetMyshop

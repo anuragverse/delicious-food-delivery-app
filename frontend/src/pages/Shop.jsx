@@ -1,17 +1,19 @@
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
-import { serverUrl } from '../App'
+import { apiBase as serverUrl } from '../api';
 import { useNavigate, useParams } from 'react-router-dom'
 import { FaStore } from "react-icons/fa6";
 import { FaLocationDot } from "react-icons/fa6";
 import { FaUtensils } from "react-icons/fa";
 import { FaArrowLeft } from "react-icons/fa";
 import FoodCard from '../components/FoodCard';
+import { notify, errMsg } from '../toast';
 
 function Shop() {
     const { shopId } = useParams()
     const [items, setItems] = useState([])
-    const [shop, setShop] = useState([])
+    const [shop, setShop] = useState(null)
+    const [loading, setLoading] = useState(true)
     const [selectedFoodType, setSelectedFoodType] = useState("all")
     const navigate = useNavigate()
 
@@ -19,14 +21,17 @@ function Shop() {
         try {
             const result = await axios.get(`${serverUrl}/api/item/get-by-shop/${shopId}`, { withCredentials: true })
             setShop(result.data.shop)
-            setItems(result.data.items)
+            setItems(result.data.items || [])
         } catch (error) {
-            console.log(error)
+            notify.error(errMsg(error, "Could not load this shop"))
+        } finally {
+            setLoading(false)
         }
     }
 
     useEffect(() => {
         handleShop()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shopId])
 
     const filteredItems = items.filter((item) => {
@@ -39,6 +44,7 @@ function Shop() {
 
             {/* Back Button */}
             <button
+                type="button"
                 className='absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/50 hover:bg-black/70 text-white px-3 py-2 rounded-full shadow-md transition-all duration-300 hover:scale-105'
                 onClick={() => navigate("/")}
             >
@@ -47,6 +53,14 @@ function Shop() {
             </button>
 
             {/* Shop Banner */}
+            {loading && (
+                <div className='h-64 flex items-center justify-center text-gray-500'>Loading shop...</div>
+            )}
+
+            {!loading && !shop && (
+                <div className='h-64 flex items-center justify-center text-gray-500'>Shop not found</div>
+            )}
+
             {shop && (
                 <div className='relative w-full h-64 md:h-80 lg:h-96 overflow-hidden'>
                     <img
@@ -87,6 +101,7 @@ function Shop() {
                 <div className='flex flex-wrap justify-center gap-3 mb-8'>
                     <button
                         onClick={() => setSelectedFoodType("all")}
+                        type="button"
                         className={`px-5 py-2 rounded-full border font-medium transition ${
                             selectedFoodType === "all"
                                 ? "bg-[#ff4d2d] text-white border-[#ff4d2d] shadow-md"
@@ -98,6 +113,7 @@ function Shop() {
 
                     <button
                         onClick={() => setSelectedFoodType("veg")}
+                        type="button"
                         className={`px-5 py-2 rounded-full border font-medium transition ${
                             selectedFoodType === "veg"
                                 ? "bg-green-500 text-white border-green-500 shadow-md"
@@ -109,6 +125,7 @@ function Shop() {
 
                     <button
                         onClick={() => setSelectedFoodType("non-veg")}
+                        type="button"
                         className={`px-5 py-2 rounded-full border font-medium transition ${
                             selectedFoodType === "non-veg"
                                 ? "bg-red-500 text-white border-red-500 shadow-md"

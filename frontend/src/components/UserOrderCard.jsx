@@ -10,7 +10,7 @@ function UserOrderCard({ data }) {
     const s = status?.toLowerCase()
     if (s === "pending") return "text-yellow-600 bg-yellow-100"
     if (s === "accepted" || s === "preparing") return "text-blue-600 bg-blue-100"
-    if (s === "out for delivery") return "text-purple-600 bg-purple-100"
+    if (s === "out for delivery" || s === "out of delivery") return "text-purple-600 bg-purple-100"
     if (s === "delivered") return "text-green-600 bg-green-100"
     if (s === "cancelled") return "text-red-600 bg-red-100"
     return "text-gray-600 bg-gray-100"

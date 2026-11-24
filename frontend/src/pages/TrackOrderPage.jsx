@@ -1,10 +1,11 @@
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { serverUrl } from '../App'
+import { apiBase as serverUrl } from '../api';
 import { IoIosArrowRoundBack } from "react-icons/io"
 import DeliveryBoyTracking from '../components/DeliveryBoyTracking'
 import { useSelector } from 'react-redux'
+import { notify, errMsg } from '../toast'
 
 function TrackOrderPage() {
   const { orderId } = useParams()
@@ -21,20 +22,19 @@ function TrackOrderPage() {
       )
       setCurrentOrder(result.data)
     } catch (error) {
-      console.log("TRACK ORDER FETCH ERROR:", error)
+      notify.error(errMsg(error, "Could not load this order"))
     }
   }
 
   useEffect(() => {
     handleGetOrder()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
 
   useEffect(() => {
     if (!socket) return
 
     const handleLocationUpdate = ({ deliveryBoyId, latitude, longitude }) => {
-      console.log("LIVE DELIVERY LOCATION:", { deliveryBoyId, latitude, longitude })
-
       setLiveLocations(prev => ({
         ...prev,
         [deliveryBoyId]: {
